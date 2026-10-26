@@ -1,0 +1,687 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Supply Risk Control Tower</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* Layout: control-tower bar, analytics column with scenario lab up top, agent rail docked right */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --surface-2:#e7ecf1; --line:#d2dae2; --fg:#0f1923; --muted:#566576;
+  --accent:#1c5bcc; --accent-soft:#d9e4f8; --signal:#d4661a;
+  --crit:#c7362a; --warn:#b5730e; --good:#2b8a4d;
+  --c1:#1c5bcc; --c2:#d4661a; --c3:#6a4fc4; --c4:#1f8a86; --c5:#b23a6c; --c6:#8796a5;
+  --display:"Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1117; --surface:#121a23; --surface-2:#192430; --line:#253241; --fg:#e2e8ee; --muted:#8b9aab;
+  --accent:#6c9bff; --accent-soft:#15284a; --signal:#f2984c;
+  --crit:#f26a5a; --warn:#e8af4a; --good:#5bc282;
+  --c1:#6c9bff; --c2:#f2984c; --c3:#a993f5; --c4:#4cc4bf; --c5:#ee7aa8; --c6:#6c7c8c;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1117; --surface:#121a23; --surface-2:#192430; --line:#253241; --fg:#e2e8ee; --muted:#8b9aab;
+  --accent:#6c9bff; --accent-soft:#15284a; --signal:#f2984c;
+  --crit:#f26a5a; --warn:#e8af4a; --good:#5bc282;
+  --c1:#6c9bff; --c2:#f2984c; --c3:#a993f5; --c4:#4cc4bf; --c5:#ee7aa8; --c6:#6c7c8c;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;margin:0;font-weight:800;letter-spacing:-.005em}
+.num,td.n,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select,input[type=search],textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:7px 10px}
+
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--surface);border-bottom:1px solid var(--line)}
+.topbar-in{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand h1{font-size:19px;letter-spacing:.01em;text-transform:uppercase}
+.brand small{display:block;color:var(--muted);font-size:12px;font-family:var(--body)}
+.clock{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.clock b{font-family:var(--mono);color:var(--fg);font-weight:500}
+.live{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--crit);font-size:12px}
+.live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--crit);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.35}}
+
+.page{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:18px;padding-block:18px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1640px;margin:0 auto}
+@media (max-width:1180px){.page{grid-template-columns:minmax(0,1fr)}}
+main{display:flex;flex-direction:column;gap:18px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.panel-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.panel-h h3{font-size:16px}
+.panel-h p{margin:2px 0 0;color:var(--muted);font-size:12.5px;max-width:70ch}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.grid2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px}
+.grid2e{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+.grid2r{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:18px}
+@media (max-width:900px){.grid2,.grid2e,.grid2r{grid-template-columns:minmax(0,1fr)}}
+
+.brief{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:grid;gap:14px}
+.brief h2{font-size:clamp(20px,2.4vw,27px);max-width:36ch}
+.brief .prob{color:var(--muted);max-width:78ch;margin:6px 0 0}
+.pipe{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.pipe button{all:unset;cursor:pointer;padding:12px 14px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:3px;min-width:0}
+.pipe button:last-child{border-right:0}
+.pipe button:hover{background:var(--surface-2)}
+.pipe button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.pipe .st{font-size:11px;font-family:var(--mono);color:var(--signal)}
+.pipe b{font-family:var(--display);font-size:15px}
+.pipe .d{color:var(--muted);font-size:12px}
+.pipe .v{font-family:var(--mono);font-size:12px}
+@media (max-width:700px){.pipe{grid-template-columns:repeat(2,minmax(0,1fr))}.pipe button:nth-child(2){border-right:0}.pipe button:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+@media (max-width:1300px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:3px;min-width:0;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--kc,transparent)}
+.kpi .l{font-size:12px;color:var(--muted)}
+.kpi .v{font-family:var(--display);font-size:25px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.15}
+.kpi .s{font-size:12px;color:var(--muted)}
+.up-bad{color:var(--crit)} .up-good{color:var(--good)} .warn{color:var(--warn)}
+
+/* alerts / scenario lab */
+.alerts{display:flex;flex-direction:column;gap:8px}
+.alert{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.alert[data-on="true"]{border-color:color-mix(in oklab,var(--crit) 45%,var(--line));background:color-mix(in oklab,var(--crit) 5%,var(--surface))}
+.alert .ic{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;background:var(--surface-2);font-family:var(--mono);font-size:11px;font-weight:600;color:var(--muted)}
+.alert[data-on="true"] .ic{background:var(--crit);color:var(--surface)}
+.alert b{display:block;font-size:13.5px}
+.alert .src{font-size:12px;color:var(--muted)}
+.alert .imp{font-size:12px;margin-top:2px}
+.sw{position:relative;width:36px;height:20px;flex:none}
+.sw input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer;width:100%;height:100%}
+.sw span{position:absolute;inset:0;border-radius:10px;background:var(--line);transition:background .2s;pointer-events:none}
+.sw span::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--surface);transition:transform .2s}
+.sw input:checked+span{background:var(--crit)}
+.sw input:checked+span::after{transform:translateX(16px)}
+.sw input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.sev{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:12.5px;flex-wrap:wrap}
+.sev input{flex:1;accent-color:var(--crit);min-width:140px}
+.sev b{font-family:var(--mono)}
+
+.chartbox{position:relative;height:250px}
+.chartbox.sm{height:220px}
+.insight{margin-top:10px;font-size:13px;padding:9px 12px;border-radius:0;background:var(--surface-2);border-left:3px solid var(--signal)}
+.netwrap{overflow-x:auto}
+.netwrap svg{display:block;width:100%;min-width:560px;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin-top:6px}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend span::before{content:"";width:14px;height:4px;border-radius:2px;background:var(--lc)}
+
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table.t{width:100%;border-collapse:collapse;font-size:13px;min-width:620px}
+table.t th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:9px 10px;background:var(--surface-2)}
+table.t td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:middle}
+table.t tbody tr.click{cursor:pointer}
+table.t tbody tr.click:hover{background:var(--surface-2)}
+table.t tbody tr[aria-selected="true"]{background:color-mix(in oklab,var(--accent) 12%,var(--surface))}
+.who b{display:block;font-weight:600}
+.who span{font-size:11.5px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;background:color-mix(in oklab,var(--pc) 15%,var(--surface));color:var(--pc)}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--pc)}
+.chip{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:5px;background:var(--surface-2);white-space:nowrap}
+.bar{display:flex;align-items:center;gap:8px;min-width:100px}
+.bar i{display:block;height:6px;border-radius:3px;background:var(--surface-2);flex:1;position:relative;overflow:hidden}
+.bar i::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--w);background:var(--bc);border-radius:3px}
+.spark{display:block}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 12px;font-weight:600;font-size:13px}
+.btn:hover{background:var(--surface-2)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.note{font-size:12px;color:var(--muted)}
+
+.detail{display:flex;flex-direction:column;gap:12px}
+.detail .hd{display:flex;gap:14px;align-items:center}
+.kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.kv div{background:var(--surface-2);border-radius:6px;padding:7px 9px;min-width:0}
+.kv span{display:block;font-size:11px;color:var(--muted)}
+.kv b{font-family:var(--mono);font-weight:500;font-size:13px}
+.drv{display:flex;flex-direction:column;gap:6px}
+.drv .r{display:grid;grid-template-columns:minmax(0,1fr) 100px 44px;gap:8px;align-items:center;font-size:12.5px}
+.drv .b{height:8px;background:var(--surface-2);border-radius:4px;position:relative;overflow:hidden}
+.drv .b i{position:absolute;inset:0 auto 0 0;background:var(--crit);border-radius:4px}
+.drv .b i.neg{background:var(--good)}
+.drv .n{font-family:var(--mono);font-size:11.5px;text-align:right;color:var(--muted)}
+.gauge text{font-family:var(--display);font-weight:800}
+
+/* stockout timeline */
+.tl{overflow-x:auto}
+.tl-in{display:grid;grid-template-columns:210px repeat(31,minmax(16px,1fr));min-width:820px;gap:2px;align-items:center}
+.tl .hc{font-size:10.5px;color:var(--muted);text-align:center;font-family:var(--mono);white-space:nowrap}
+.tl .rl{all:unset;cursor:pointer;font-size:12px;padding-right:8px;min-width:0;display:flex;flex-direction:column}
+.tl .rl b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl .rl span{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl .rl:focus-visible{outline:2px solid var(--accent)}
+.tl .c{height:22px;border-radius:3px;position:relative;background:color-mix(in oklab,var(--accent) 14%,var(--surface))}
+.tl .c.w{background:color-mix(in oklab,var(--warn) 45%,var(--surface))}
+.tl .c.x{background:var(--crit)}
+.tl .c.a::after{content:"";position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px;border-radius:50%;background:var(--fg);box-shadow:0 0 0 2px var(--surface)}
+.tl .c.t0{outline:1.5px solid var(--fg);outline-offset:-1.5px}
+.tl-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.tl-legend span{display:inline-flex;gap:6px;align-items:center}
+.tl-legend i{width:14px;height:12px;border-radius:2px;display:inline-block}
+
+.mitig td .opt{font-size:11.5px;color:var(--muted)}
+.chk{width:18px;height:18px;accent-color:var(--accent);cursor:pointer}
+.totals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+@media (max-width:700px){.totals{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.totals div{background:var(--surface-2);border-radius:7px;padding:9px 11px}
+.totals span{display:block;font-size:11.5px;color:var(--muted)}
+.totals b{font-family:var(--display);font-size:20px;font-variant-numeric:tabular-nums}
+
+/* agent */
+.agent{position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px);height:calc(100vh - 96px);display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;min-width:0}
+@media (max-width:1180px){.agent{position:relative;top:0;height:640px}}
+.agent-h{padding:14px 16px 10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.agent-h .t{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.agent-h h3{font-size:17px;display:flex;gap:8px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px color-mix(in oklab,var(--good) 25%,transparent)}
+.engine{all:unset;cursor:pointer;font-size:11.5px;font-family:var(--mono);padding:3px 8px;border-radius:5px;border:1px solid var(--line);color:var(--muted)}
+.engine b{color:var(--accent);font-weight:500}
+.engine:focus-visible{outline:2px solid var(--accent)}
+.ctx{font-size:12px;color:var(--muted)}
+.msgs{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.msg{font-size:13.5px;min-width:0}
+.msg.u{align-self:flex-end;background:var(--accent);color:var(--surface);padding:8px 12px;border-radius:12px 12px 3px 12px;max-width:88%}
+.msg.a .body{background:var(--surface-2);padding:10px 12px;border-radius:3px 12px 12px 12px;overflow-wrap:anywhere}
+.msg.a .body p{margin:0 0 7px}.msg.a .body p:last-child{margin:0}
+.msg.a .body ul,.msg.a .body ol{margin:4px 0 8px;padding-left:18px}
+.msg.a .body h4{margin:6px 0 4px;font-size:14px}
+.msg.a .body code{font-family:var(--mono);font-size:12px;background:var(--surface);padding:1px 4px;border-radius:4px}
+.msg.a .body table{border-collapse:collapse;font-size:12px;margin:6px 0;display:block;overflow-x:auto}
+.msg.a .body td,.msg.a .body th{border:1px solid var(--line);padding:3px 6px;text-align:left}
+.trace{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.trace span{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:5px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.trace span::before{content:"▸ ";color:var(--signal)}
+.thinking{color:var(--muted);font-style:italic}
+.sugg{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--line)}
+.sugg button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:12px;text-align:left}
+.sugg button:hover{background:var(--surface-2);border-color:var(--accent)}
+.composer{display:flex;gap:8px;padding:10px 16px 14px;border-top:1px solid var(--line)}
+.composer textarea{flex:1;resize:none;height:42px;min-width:0}
+.fab{display:none;position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:8;border:0;background:var(--accent);color:var(--surface);padding:11px 16px;border-radius:999px;font-weight:700;box-shadow:0 6px 18px rgb(0 0 0 / .2)}
+@media (max-width:1180px){.fab{display:block}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style>
+
+<header class="topbar"><div class="topbar-in">
+  <div class="brand">
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="7" fill="var(--accent)"/><path d="M17 7v20M9 13l8-6 8 6M9 21h16" fill="none" stroke="var(--surface)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17" cy="21" r="3" fill="var(--signal)"/></svg>
+    <div><h1>Supply Risk Control Tower</h1><small>AI operations agent · EV components manufacturer · Hyderabad &amp; Pune plants · assumed data</small></div>
+  </div>
+  <div class="clock"><span class="live" id="liveCount"></span><span>As of <b>26 Oct 2026</b> · horizon <b>30 days</b></span></div>
+</div></header>
+
+<div class="page">
+<main>
+  <section class="brief">
+    <div>
+      <div class="eyebrow">Problem 08 · Supply chain disruption prediction</div>
+      <h2>Disruptions are found when the line stops, not when the warning signs first appear</h2>
+      <p class="prob">The agent joins supplier performance, live risk signals, in-transit shipments, inventory and the production plan. It predicts which parts will run out and when, which production lines will stop, how much revenue is exposed, and which mitigation is cheapest for each gap, about two weeks before the shortage.</p>
+    </div>
+    <div class="pipe" id="pipe"></div>
+  </section>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2r" id="s-sense">
+    <div class="panel">
+      <div class="panel-h"><div><h3>Risk signals &amp; scenario lab</h3><p>Live alerts the agent is tracking. Switch any on or off and change severity; every number on the page recalculates.</p></div></div>
+      <div class="alerts" id="alerts"></div>
+      <div class="sev"><label for="sev">Severity</label><input type="range" id="sev" min="0.5" max="2" step="0.25" value="1"><b id="sevVal">1.0×</b></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div><h3>Supply network</h3><p>Origins → gateways → plants. Lane colour shows the worst predicted delay on that lane.</p></div></div>
+      <div class="netwrap" id="net"></div>
+      <div class="legend"><span style="--lc:var(--good)">On time (&lt;2 days)</span><span style="--lc:var(--warn)">Delayed 2–5 days</span><span style="--lc:var(--crit)">Critical (5+ days)</span></div>
+    </div>
+  </div>
+
+  <div class="grid2e" id="s-predict">
+    <div class="panel">
+      <div class="panel-h"><div><h3>Supplier on-time delivery, 12 weeks</h3><p>Portfolio average against the three fastest-declining suppliers</p></div></div>
+      <div class="chartbox"><canvas id="cOtd" aria-label="On-time delivery trend"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div><h3>Supplier risk matrix</h3><p>Predicted 30-day disruption probability against daily revenue that depends on the supplier</p></div></div>
+      <div class="chartbox"><canvas id="cMatrix" aria-label="Supplier risk matrix"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <div class="panel-h"><div><h3>Supplier early-warning list</h3><p>Ranked by predicted disruption probability over the next 30 days. Select a supplier.</p></div></div>
+      <div class="tbl"><table class="t"><thead><tr><th>Supplier</th><th>Category</th><th>Risk (30d)</th><th>OTD trend</th><th>Exposure</th><th>Revenue dependent</th></tr></thead><tbody id="supRows"></tbody></table></div>
+    </div>
+    <div class="panel" id="supDetail"></div>
+  </div>
+
+  <div class="panel" id="s-impact">
+    <div class="panel-h"><div><h3>Stockout timeline, next 30 days</h3><p>Projected stock of each critical part, day by day, using predicted (not planned) arrival dates. Click a part to ask the agent.</p></div><button class="btn" id="tlToggle">Show all parts</button></div>
+    <div class="tl" id="tl"></div>
+    <div class="tl-legend"><span><i style="background:color-mix(in oklab,var(--accent) 14%,var(--surface))"></i>Healthy</span><span><i style="background:color-mix(in oklab,var(--warn) 45%,var(--surface))"></i>Below safety stock</span><span><i style="background:var(--crit)"></i>Stocked out, line stops</span><span><i style="background:var(--fg);border-radius:50%;width:9px;height:9px"></i>Predicted arrival</span></div>
+  </div>
+
+  <div class="grid2e">
+    <div class="panel">
+      <div class="panel-h"><div><h3>Production revenue at risk by line</h3><p>₹ crore over 30 days: without disruptions, under the current scenario, and after the approved mitigation plan</p></div></div>
+      <div class="chartbox"><canvas id="cRev" aria-label="Revenue at risk by production line"></canvas></div>
+      <div class="insight" id="revInsight"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div><h3>Inbound shipments</h3><p>Sea and air shipments landing in the horizon, planned vs predicted ETA</p></div></div>
+      <div class="tbl" style="max-height:330px;overflow:auto"><table class="t" style="min-width:520px"><thead><tr><th>Shipment</th><th>Lane</th><th>Planned</th><th>Predicted</th><th>Status</th></tr></thead><tbody id="shipRows"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="panel" id="s-act">
+    <div class="panel-h"><div><h3>Mitigation plan</h3><p>For each part that will stock out, the agent tests every option (air expedite, dedicated truck, alternate supplier, spot buy), simulates it, and picks the cheapest one that closes the gap. Untick to see what happens without it.</p></div></div>
+    <div class="tbl"><table class="t mitig" style="min-width:860px"><thead><tr><th>Approve</th><th>Part</th><th>Stocks out</th><th>Recommended action</th><th>Arrives</th><th>Cost</th><th>Stop-days avoided</th><th>Also considered</th></tr></thead><tbody id="mitRows"></tbody></table></div>
+    <div class="totals" id="mitTotals"></div>
+  </div>
+</main>
+
+<aside class="agent" id="agent" aria-label="Control tower agent">
+  <div class="agent-h">
+    <div class="t"><h3><span class="dot" aria-hidden="true"></span>Tower Agent</h3><button class="engine" id="engineBtn"></button></div>
+    <div class="ctx">Reads the same data as the dashboard and can switch scenarios on and off</div>
+  </div>
+  <div class="msgs" id="msgs" aria-live="polite"></div>
+  <div class="sugg" id="sugg"></div>
+  <form class="composer" id="composer"><textarea id="q" placeholder="Ask about suppliers, parts, lines, what-ifs…" aria-label="Message the agent"></textarea><button class="btn pri" id="sendBtn" type="submit">Send</button></form>
+</aside>
+</div>
+<button class="fab" id="fab">Ask the agent</button>
+
+<script>
+(function(){
+"use strict";
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const R=rng(8082026);
+const ri=(a,b)=>Math.floor(a+R()*(b-a+1));
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const sig=x=>1/(1+Math.exp(-x));
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pct=(x,d=0)=>(x*100).toFixed(d)+"%";
+const inr=n=>"₹"+Math.round(n).toLocaleString("en-IN");
+function inrS(n){const a=Math.abs(n);if(a>=1e7)return"₹"+(n/1e7).toFixed(2)+" Cr";if(a>=1e5)return"₹"+(n/1e5).toFixed(1)+" L";return inr(n)}
+const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function alpha(hex,a){hex=hex.replace("#","");if(hex.length===3)hex=hex.split("").map(c=>c+c).join("");const n=parseInt(hex,16);return`rgba(${n>>16&255},${n>>8&255},${n&255},${a})`}
+const DAY0=Date.UTC(2026,9,26);
+const dl=t=>new Date(DAY0+t*864e5).toLocaleDateString("en-GB",{day:"numeric",month:"short",timeZone:"UTC"});
+const H=30;
+
+/* ===================== ASSUMED DATA ===================== */
+const LANES={
+ "CN-SHA":{n:"Shanghai → Chennai",mode:"Sea",gw:"MAA",o:"CN"},
+ "CN-NGB":{n:"Ningbo → Nhava Sheva",mode:"Sea",gw:"NSA",o:"CN"},
+ "TW-KHH":{n:"Kaohsiung → Chennai",mode:"Sea",gw:"MAA",o:"TW"},
+ "VN-HPH":{n:"Haiphong → Chennai",mode:"Sea",gw:"MAA",o:"VN"},
+ "KR-PUS":{n:"Busan → Chennai",mode:"Sea",gw:"MAA",o:"KR"},
+ "MY-PEN":{n:"Penang → Chennai",mode:"Sea",gw:"MAA",o:"MY"},
+ "DE-HAM":{n:"Hamburg → Nhava Sheva",mode:"Sea",gw:"NSA",o:"DE"},
+ "DE-FRA":{n:"Frankfurt → Hyderabad",mode:"Air",gw:"AIR",o:"DE"},
+ "IN-S":{n:"Southern road corridor",mode:"Road",gw:"RS",o:"INS"},
+ "IN-W":{n:"Western road corridor",mode:"Road",gw:"RW",o:"INW"}
+};
+// id,name,category,city,region,lane,lead,fin,cap,ppm,otd0,otd1,single,alt
+const SUPS=[
+ ["S01","Deccan Castings Pvt Ltd","Castings","Hyderabad","IN","IN-S",7,34,.97,1800,92,74,1,{id:"S15",lead:9,prem:.12}],
+ ["S02","Shenzhen Microlink Electronics","Electronics","Shenzhen","CN","CN-SHA",30,70,.93,420,90,81,0,{id:"S12",lead:10,prem:.18}],
+ ["S03","Kaohsiung SemiTech","Semiconductors","Kaohsiung","TW","TW-KHH",45,82,.99,120,94,83,1,null],
+ ["S04","Rhein Präzision GmbH","Bearings","Hamburg","DE","DE-HAM",40,88,.78,90,96,88,0,{id:"S20",lead:30,prem:.05}],
+ ["S05","Pune Forge Works","Forgings","Pune","IN","IN-W",6,61,.88,900,91,89,0,{id:"S16",lead:6,prem:.08}],
+ ["S06","Coimbatore Seals & Gaskets","Rubber & seals","Coimbatore","IN","IN-S",5,72,.74,650,95,95,0,null],
+ ["S07","Vina Plastics JSC","Plastics","Haiphong","VN","VN-HPH",28,64,.86,700,89,84,0,{id:"S18",lead:7,prem:.10}],
+ ["S08","Bharat Steel Coils","Steel","Ballari","IN","IN-S",8,79,.82,300,93,90,0,null],
+ ["S09","Ningbo Fastening Co.","Fasteners","Ningbo","CN","CN-NGB",35,66,.80,500,90,86,0,{id:"S21",lead:5,prem:.06}],
+ ["S10","Hosur Wire Harness","Wiring harness","Hosur","IN","IN-S",6,58,.95,1100,93,80,1,{ext:"Pune HarnessTech (qualified backup)",lane:"IN-W",lead:8,prem:.15}],
+ ["S11","Suzhou Motor Components","Motor parts","Suzhou","CN","CN-SHA",32,74,.89,380,92,87,1,null],
+ ["S12","Bengaluru PCB Assemblies","Electronics","Bengaluru","IN","IN-S",10,69,.91,650,94,90,0,{id:"S02",lead:30,prem:-.05}],
+ ["S13","Busan Cell Energy","Battery cells","Busan","KR","KR-PUS",38,85,.94,150,95,89,1,null],
+ ["S14","Penang Sensors Sdn Bhd","Sensors","Penang","MY","MY-PEN",21,77,.87,210,93,91,0,null],
+ ["S15","Vizag Alloys & Castings","Castings","Visakhapatnam","IN","IN-S",9,70,.72,1300,90,90,0,null],
+ ["S16","Aurangabad Pressings","Forgings","Aurangabad","IN","IN-W",6,65,.79,800,92,85,0,null],
+ ["S17","Stuttgart Control Systems","Control units","Stuttgart","DE","DE-FRA",12,90,.76,60,97,96,1,null],
+ ["S18","Gujarat Resins","Plastics","Vadodara","IN","IN-W",5,55,.83,900,91,88,0,null],
+ ["S19","Nashik Gaskets","Rubber & seals","Nashik","IN","IN-W",4,68,.70,700,96,94,0,{id:"S06",lead:5,prem:.04}],
+ ["S20","Taichung Bearing Co.","Bearings","Taichung","TW","TW-KHH",30,76,.81,140,94,93,0,{id:"S04",lead:40,prem:.06}],
+ ["S21","Rajkot Fasteners","Fasteners","Rajkot","IN","IN-W",5,63,.76,600,92,91,0,null],
+ ["S22","Sri City Packaging","Packaging","Sri City","IN","IN-S",4,71,.68,300,97,97,0,null],
+ ["S23","Chennai Magnetics","Magnets","Chennai","IN","IN-S",4,52,.92,800,91,84,1,{ext:"Distributor stock (imported magnets)",lane:"IN-S",lead:12,prem:.30}],
+ ["S24","Ahmedabad Coatings","Coatings","Ahmedabad","IN","IN-W",6,74,.73,400,95,94,0,null]
+].map(a=>({id:a[0],name:a[1],cat:a[2],city:a[3],region:a[4],lane:a[5],lead:a[6],fin:a[7],cap:a[8],ppm:a[9],otd0:a[10],otd1:a[11],single:!!a[12],alt:a[13],coast:["S22","S23"].includes(a[0])}));
+const SUP=Object.fromEntries(SUPS.map(s=>[s.id,s]));
+// weekly OTD history
+SUPS.forEach(s=>{s.otdW=[];for(let w=0;w<12;w++){const base=s.otd0+(s.otd1-s.otd0)*(w/11);s.otdW.push(clamp(base+(R()-.5)*3,55,100))}s.otdW[11]=s.otd1});
+
+const LINES=[
+ {id:"L1",n:"EV motor controller",plant:"Hyderabad",out:220,price:18500},
+ {id:"L2",n:"Electric power steering",plant:"Hyderabad",out:180,price:14200},
+ {id:"L3",n:"Brake actuator assembly",plant:"Pune",out:260,price:6800},
+ {id:"L4",n:"2W battery pack",plant:"Pune",out:160,price:32000}
+];
+const LM=Object.fromEntries(LINES.map(l=>[l.id,l]));
+LINES.forEach(l=>l.rev=l.out*l.price);
+// id,name,supplier,line,qty per unit,unit cost,cover days,first arrival (sea/air) or delivery frequency (road)
+const PARTS=[
+ ["P101","Power MOSFET module","S03","L1",6,420,9,7],["P102","Controller PCB","S02","L1",1,2800,16,9],["P103","Aluminium housing casting","S01","L1",1,1450,4,4],
+ ["P104","Motor wire harness","S10","L1",1,650,8,5],["P105","Current sensor","S14","L1",2,380,18,12],["P106","Gate-driver control unit","S17","L1",1,1900,10,5],
+ ["P201","EPS motor stator","S11","L2",1,2200,24,13],["P202","Neodymium magnet set","S23","L2",1,1600,5,5],["P203","Steering gear housing","S01","L2",1,1250,6,4],
+ ["P204","Deep-groove bearing 6204","S04","L2",2,240,13,11],["P205","Torque sensor","S14","L2",1,900,20,12],["P206","EPS ECU board","S12","L2",1,2100,7,7],
+ ["P301","Forged caliper bracket","S05","L3",1,780,5,4],["P302","Piston seal kit","S19","L3",1,120,12,6],["P303","Flange bolt M10","S09","L3",4,18,22,14],
+ ["P304","Actuator DC motor","S11","L3",1,1500,18,10],["P305","Needle roller bearing","S20","L3",2,160,22,15],["P306","Pressed steel cover","S16","L3",1,210,6,5],
+ ["P401","BMS controller PCB","S02","L4",1,1100,13,8],["P402","Li-ion cell 21700","S13","L4",40,210,12,10],["P403","Polycarbonate enclosure","S07","L4",1,540,20,11],
+ ["P404","Nickel busbar harness","S10","L4",1,380,9,5],["P405","NTC thermal sensor","S14","L4",3,90,25,12],["P406","Pack fastener kit","S21","L4",12,6,15,7],["P407","Export crate","S22","L4",1,150,14,6]
+].map(a=>{const s=SUP[a[2]],mode=LANES[s.lane].mode,use=LM[a[3]].out*a[4];return{id:a[0],n:a[1],sup:a[2],line:a[3],qty:a[4],cost:a[5],use,onHand:use*a[6],mode,safety:use*(mode==="Road"?2:5),first:a[7]}});
+const PM=Object.fromEntries(PARTS.map(p=>[p.id,p]));
+LINES.forEach(l=>l.parts=PARTS.filter(p=>p.line===l.id));
+// planned arrivals
+let shipNo=4100;
+PARTS.forEach(p=>{p.arr=[];
+  if(p.mode==="Road"){for(let d=p.first;d<=H;d+=p.first)p.arr.push({id:"DL-"+(shipNo++),day:d,qty:p.use*p.first,jit:R()<.3?1:0})}
+  else if(p.mode==="Air"){for(let d=p.first;d<=H;d+=7)p.arr.push({id:"AW-"+(shipNo++),day:d,qty:p.use*7,jit:0})}
+  else{p.arr.push({id:"SH-"+(shipNo++),day:p.first,qty:p.use*30,jit:ri(0,2)})}
+});
+SUPS.forEach(s=>{s.parts=PARTS.filter(p=>p.sup===s.id);s.revDep=[...new Set(s.parts.map(p=>p.line))].reduce((a,l)=>a+LM[l].rev,0);s.spend=s.parts.reduce((a,p)=>a+p.use*p.cost*30,0)});
+
+const EVENTS=[
+ {id:"cyclone",ic:"CY",t:"Cyclone alert, Bay of Bengal",src:"IMD orange alert · landfall window 29–31 Oct",imp:"Chennai port and coastal roads close; +6 days",d:6,prob:.7,on:true,hits:s=>LANES[s.lane].gw==="MAA"||s.coast},
+ {id:"strike",ic:"ST",t:"Transporters' strike, Maharashtra",src:"Union notice from 30 Oct · open-ended",imp:"Western road lanes and Nhava Sheva drayage; +4 days",d:4,prob:.55,on:true,hits:s=>s.lane==="IN-W"||LANES[s.lane].gw==="NSA"},
+ {id:"redsea",ic:"RS",t:"Red Sea rerouting, Europe → India",src:"Carriers diverting via Cape of Good Hope",imp:"Hamburg sailings; +9 days",d:9,prob:.9,on:true,hits:s=>s.lane==="DE-HAM"},
+ {id:"chips",ic:"CH",t:"Chip allocation cut, tier-1 foundries",src:"Supplier notices: Q4 allocation at 65%",imp:"Semiconductor and electronics lots ship at 65%; +3 days",d:3,fill:.65,prob:.8,on:true,hits:s=>["Semiconductors","Electronics"].includes(s.cat)},
+ {id:"distress",ic:"FD",t:"Financial distress, Deccan Castings",src:"Late payments to its vendors; credit rating cut",imp:"Deliveries at 50%; +8 days",d:8,fill:.5,prob:.45,on:true,hits:s=>s.id==="S01"},
+ {id:"typhoon",ic:"TY",t:"Typhoon watch, Taiwan Strait",src:"Forecast track uncertain · 5-day window",imp:"Kaohsiung port and Taiwan suppliers; +5 days",d:5,prob:.3,on:false,hits:s=>s.region==="TW"}
+];
+const EV=Object.fromEntries(EVENTS.map(e=>[e.id,e]));
+const SC={sev:1};
+
+/* ===================== MODELS ===================== */
+const supLate=s=>Math.round((100-s.otd1)/100*6);
+function laneImpact(s,sc){let d=0,f=1;const hit=[];EVENTS.forEach(e=>{if(e.on&&e.hits(s)){d+=e.d*sc.sev;if(e.fill)f*=Math.max(.2,1-(1-e.fill)*sc.sev);hit.push(e.id)}});return{d:Math.round(d),f,hit}}
+function arrivals(p,sc,useEvents=true){const s=SUP[p.sup];const li=useEvents?laneImpact(s,sc):{d:0,f:1,hit:[]};return p.arr.map(a=>({...a,planned:a.day,pday:a.day+a.jit+supLate(s)+li.d,pqty:a.qty*li.f,delay:a.jit+supLate(s)+li.d,hit:li.hit}))}
+function project(p,arrs,extra=[]){
+  const inv=[p.onHand];const all=[...arrs.map(a=>({d:a.pday,q:a.pqty})),...extra];let unmet=0;
+  for(let t=1;t<=H;t++){let x=Math.max(0,inv[t-1]);for(const a of all)if(a.d===t)x+=a.q;x-=p.use;if(x<0){unmet+=Math.min(p.use,-x);inv.push(-1e-6-Math.min(p.use,-x))}else inv.push(x)}
+  const lvl=inv.map(x=>Math.max(0,x));
+  let so=null,short=0,below=null;inv.forEach((x,t)=>{if(x<0){short++;if(so===null)so=t}if(below===null&&x<p.safety)below=t});
+  return{inv,so,short,minI:-unmet,below,lvl};
+}
+const DRV=[
+ {k:"otd",l:"On-time delivery falling",f:s=>(s.otd0-s.otd1)/10,w:1.2},
+ {k:"fin",l:"Weak financial health",f:s=>(100-s.fin)/50,w:1.1},
+ {k:"cap",l:"Running near full capacity",f:s=>Math.max(0,s.cap-.85)/.1,w:.8},
+ {k:"ppm",l:"Quality rejects (PPM)",f:s=>s.ppm/1000,w:.5},
+ {k:"single",l:"Single-source part",f:s=>s.single?1:0,w:.6},
+ {k:"lead",l:"Long lead time",f:s=>s.lead/30,w:.4},
+ {k:"exp",l:"Exposed to active risk events",f:s=>EVENTS.reduce((a,e)=>a+(e.on&&e.hits(s)?e.prob*SC.sev:0),0),w:1.6}
+];
+let B0=-3.2;
+function scoreSuppliers(){
+  const means={};DRV.forEach(d=>means[d.k]=SUPS.reduce((a,s)=>a+d.f(s),0)/SUPS.length);
+  SUPS.forEach(s=>{const raw=DRV.reduce((a,d)=>a+d.w*d.f(s),0);s.p=sig(B0+raw);s.drv=DRV.map(d=>({k:d.k,l:d.l,v:d.w*(d.f(s)-means[d.k])})).sort((a,b)=>b.v-a.v);s.events=EVENTS.filter(e=>e.on&&e.hits(s))});
+}
+const tierOf=p=>p>=.6?"Critical":p>=.4?"High":p>=.2?"Medium":"Low";
+const TC={Critical:"--crit",High:"--warn",Medium:"--c3",Low:"--good"};
+
+// mitigation options for one part
+const SPOT=["Electronics","Sensors","Fasteners","Bearings","Semiconductors"];
+function options(p,arrs,base){
+  const s=SUP[p.sup],lane=LANES[s.lane];const gap=Math.ceil(-base.minI);const opts=[];
+  const li=laneImpact(s,SC);
+  if(lane.mode==="Sea")opts.push({k:"air",t:"Air-expedite the next lot",how:`Pull ${gap.toLocaleString("en-IN")} units forward by air from ${s.city}`,day:5,fill:li.f,cost:gap*p.cost*.18+120000});
+  if(lane.mode==="Road")opts.push({k:"truck",t:"Dedicated truck, pull forward",how:`Collect ${gap.toLocaleString("en-IN")} units directly from ${s.city}`,day:2+Math.round(li.d*.6),fill:li.f,cost:gap*p.cost*.04+40000});
+  if(s.alt){if(s.alt.id){const a=SUP[s.alt.id];const al=laneImpact(a,SC);opts.push({k:"alt",t:`Switch volume to ${a.name}`,how:`Qualified alternate, ${s.alt.prem>=0?"+"+pct(s.alt.prem):pct(s.alt.prem)} price`,day:s.alt.lead+al.d,fill:al.f,cost:gap*p.cost*Math.max(s.alt.prem,0)+60000})}
+    else{const ex=EVENTS.filter(e=>e.on&&e.hits({lane:s.alt.lane,region:"IN",cat:"",id:"x"}));const d=Math.round(ex.reduce((a,e)=>a+e.d*SC.sev,0));opts.push({k:"alt",t:`Switch to ${s.alt.ext}`,how:`Backup source, +${pct(s.alt.prem)} price`,day:s.alt.lead+d,fill:1,cost:gap*p.cost*s.alt.prem+60000})}}
+  if(SPOT.includes(s.cat))opts.push({k:"spot",t:"Spot buy from authorised distributor",how:`Up to ${s.cat==="Semiconductors"?"40%":"60%"} of the gap at +60% price`,day:4,fill:s.cat==="Semiconductors"?.4:.6,cost:gap*p.cost*.6+25000});
+  opts.forEach(o=>{o.qty=Math.round(gap*o.fill);const r=project(p,arrs,[{d:o.day,q:o.qty}]);o.after=r.short;o.saved=base.short-r.short;o.full=r.short===0});
+  const full=opts.filter(o=>o.full).sort((a,b)=>a.cost-b.cost);
+  const best=full[0]||[...opts].sort((a,b)=>b.saved-a.saved||a.cost-b.cost)[0]||null;
+  return{gap,opts,best};
+}
+
+let STATE={};const approved={};
+function recompute(){
+  scoreSuppliers();
+  const parts=PARTS.map(p=>{const arrs=arrivals(p,SC);const r=project(p,arrs);const r0=project(p,arrivals(p,SC,false));return{p,arrs,r,r0}});
+  parts.forEach(x=>{x.mit=x.r.so!==null?options(x.p,x.arrs,x.r):null;if(x.mit&&x.mit.best&&approved[x.p.id]===undefined)approved[x.p.id]=true});
+  parts.forEach(x=>{const e=x.mit&&x.mit.best&&approved[x.p.id]?[{d:x.mit.best.day,q:x.mit.best.qty}]:[];x.rm=project(x.p,x.arrs,e)});
+  const lineStop=(l,key)=>{let n=0,first=null;for(let t=0;t<=H;t++){if(parts.filter(x=>x.p.line===l.id).some(x=>x[key].inv[t]<0)){n++;if(first===null)first=t}}return{n,first}};
+  const lines=LINES.map(l=>{const a=lineStop(l,"r"),b=lineStop(l,"r0"),m=lineStop(l,"rm");return{l,stop:a.n,first:a.first,stop0:b.n,stopM:m.n,rev:a.n*l.rev,rev0:b.n*l.rev,revM:m.n*l.rev,culprits:parts.filter(x=>x.p.line===l.id&&x.r.so!==null).sort((a,b)=>a.r.so-b.r.so)}});
+  const ships=[];parts.forEach(x=>x.arrs.forEach(a=>{if(x.p.mode!=="Road"&&a.planned<=H)ships.push({...a,part:x.p,sup:SUP[x.p.sup]})}));ships.sort((a,b)=>b.delay-a.delay);
+  const atRisk=parts.filter(x=>x.r.so!==null).sort((a,b)=>a.r.so-b.r.so);
+  const plan=atRisk.filter(x=>x.mit&&x.mit.best);
+  const planCost=plan.filter(x=>approved[x.p.id]).reduce((a,x)=>a+x.mit.best.cost,0);
+  STATE={parts,lines,ships,atRisk,plan,planCost,rev:lines.reduce((a,x)=>a+x.rev,0),rev0:lines.reduce((a,x)=>a+x.rev0,0),revM:lines.reduce((a,x)=>a+x.revM,0)};
+}
+// calibrate intercept: mean supplier risk ~ 24% with default scenario
+(function(){scoreSuppliers();let lo=-10,hi=5;for(let i=0;i<40;i++){const m=(lo+hi)/2;B0=m;scoreSuppliers();const mean=SUPS.reduce((a,s)=>a+s.p,0)/SUPS.length;if(mean>.24)hi=m;else lo=m}B0=(lo+hi)/2})();
+
+/* ===================== RENDER ===================== */
+const charts={};const hasChart=typeof window.Chart!=="undefined";
+function baseOpts(){const m=cssv("--muted"),line=cssv("--line");Chart.defaults.font.family='"IBM Plex Sans", "Segoe UI", system-ui, sans-serif';Chart.defaults.font.size=11.5;Chart.defaults.color=m;
+  return{responsive:true,maintainAspectRatio:false,animation:{duration:400},plugins:{legend:{labels:{boxWidth:10,boxHeight:10}},tooltip:{backgroundColor:cssv("--fg"),titleColor:cssv("--surface"),bodyColor:cssv("--surface"),padding:9,cornerRadius:5}},scales:{x:{grid:{display:false},ticks:{color:m},border:{color:line}},y:{grid:{color:line},ticks:{color:m},border:{display:false}}}}}
+function mk(id,cfg){if(charts[id])charts[id].destroy();const el=document.getElementById(id);if(el)charts[id]=new Chart(el,cfg)}
+const pill=(t,c)=>`<span class="pill" style="--pc:var(${c})">${esc(t)}</span>`;
+function spark(arr,w=72,h=22){const mn=Math.min(...arr)-1,mx=Math.max(...arr)+1;const pts=arr.map((v,i)=>`${(i/(arr.length-1)*w).toFixed(1)},${(h-(v-mn)/(mx-mn)*h).toFixed(1)}`).join(" ");const down=arr[arr.length-1]<arr[0]-3;return`<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(${down?"--crit":"--muted"})" stroke-width="1.6"/><circle cx="${w}" cy="${pts.split(" ").pop().split(",")[1]}" r="2.2" fill="var(${down?"--crit":"--muted"})"/></svg>`}
+function gauge(p,t){const r=44,len=Math.PI*r;return`<svg class="gauge" width="112" height="70" viewBox="0 0 112 70" role="img" aria-label="Disruption risk ${pct(p)}"><path d="M12 60 A44 44 0 0 1 100 60" fill="none" stroke="var(--surface-2)" stroke-width="10" stroke-linecap="round"/><path d="M12 60 A44 44 0 0 1 100 60" fill="none" stroke="var(${TC[t]})" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(len*p).toFixed(1)} ${len.toFixed(1)}"/><text x="56" y="56" text-anchor="middle" font-size="21" fill="var(--fg)">${(p*100).toFixed(0)}%</text></svg>`}
+const go=id=>{const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:"smooth",block:"start"})};
+
+function renderTop(){
+  const S=STATE;const on=EVENTS.filter(e=>e.on);
+  $("#liveCount").textContent=`${on.length} live risk signal${on.length===1?"":"s"}`;
+  const hiSup=SUPS.filter(s=>s.p>=.4);const stopDays=S.lines.reduce((a,x)=>a+x.stop,0);
+  const lead=S.atRisk.length?S.atRisk.reduce((a,x)=>a+x.r.so,0)/S.atRisk.length:0;
+  const late=S.ships.filter(s=>s.delay>=2).length;
+  $("#pipe").innerHTML=[["01","Sense","Signals, suppliers, shipments",`${on.length} alerts · ${S.ships.length} inbound lots`,"s-sense"],["02","Predict","Supplier risk and ETA delays",`${hiSup.length} suppliers high risk`,"s-predict"],["03","Assess impact","Stockouts → stopped lines",`${S.atRisk.length} parts stock out · ${inrS(S.rev)}`,"s-impact"],["04","Mitigate","Cheapest action that works",`${S.plan.length} actions · ${inrS(S.planCost)}`,"s-act"]]
+    .map(([n,t,d,v,id])=>`<button data-go="${id}"><span class="st">${n}</span><b>${t}</b><span class="d">${d}</span><span class="v">${v}</span></button>`).join("");
+  $("#kpis").innerHTML=[
+    ["Revenue at risk (30d)",inrS(S.rev),`vs ${inrS(S.rev0)} without disruptions`,"--crit"],
+    ["Parts that stock out",`${S.atRisk.length} / ${PARTS.length}`,S.atRisk.length?`First: ${esc(S.atRisk[0].p.n)} on ${dl(S.atRisk[0].r.so)}`:"None in horizon","--warn"],
+    ["Line stop-days",String(stopDays),`across ${S.lines.filter(x=>x.stop).length} of 4 lines`,"--crit"],
+    ["High-risk suppliers",String(hiSup.length),`${SUPS.filter(s=>s.p>=.6).length} critical · ${SUPS.filter(s=>s.single&&s.p>=.4).length} single-source`,"--warn"],
+    ["Inbound lots delayed",`${late} / ${S.ships.length}`,`Worst: +${S.ships[0]?S.ships[0].delay:0} days`,"--c3"],
+    ["Early-warning window",`${lead.toFixed(0)} days`,"Avg. time to act before a stockout","--good"]
+  ].map(([l,v,s,c])=>`<div class="kpi" style="--kc:var(${c})"><span class="l">${l}</span><span class="v">${v}</span><span class="s">${s}</span></div>`).join("");
+}
+function renderAlerts(){
+  $("#alerts").innerHTML=EVENTS.map(e=>`<div class="alert" data-on="${e.on}"><span class="ic">${e.ic}</span><div><b>${esc(e.t)}</b><div class="src">${esc(e.src)} · probability ${pct(e.prob)}</div><div class="imp">${esc(e.imp)} · hits ${SUPS.filter(s=>e.hits(s)).length} suppliers</div></div><label class="sw" title="Include in scenario"><input type="checkbox" data-ev="${e.id}" ${e.on?"checked":""} aria-label="Include ${esc(e.t)}"><span></span></label></div>`).join("");
+  $("#sevVal").textContent=SC.sev.toFixed(2).replace(/0$/,"")+"×";
+}
+function renderNet(){
+  const S=STATE;const W=680,Hh=330;
+  const O=[["CN","China"],["TW","Taiwan"],["KR","South Korea"],["VN","Vietnam"],["MY","Malaysia"],["DE","Germany"],["INS","South India"],["INW","West India"]];
+  const G=[["MAA","Chennai port"],["NSA","Nhava Sheva port"],["AIR","Hyderabad air cargo"],["RS","Southern road"],["RW","Western road"]];
+  const P=[["Hyderabad","Hyderabad plant"],["Pune","Pune plant"]];
+  const oy=i=>24+i*38,gy=i=>40+i*60,py=i=>95+i*130;
+  const pos={};O.forEach(([k],i)=>pos[k]={x:20,y:oy(i),w:110});G.forEach(([k],i)=>pos[k]={x:270,y:gy(i),w:140});P.forEach(([k],i)=>pos[k]={x:545,y:py(i),w:120});
+  const laneDelay={};S.parts.forEach(x=>{const s=SUP[x.p.sup];const L=LANES[s.lane];const key=L.o+">"+L.gw;const d=Math.max(0,...x.arrs.map(a=>a.delay));laneDelay[key]=Math.max(laneDelay[key]||0,d);const k2=L.gw+">"+LM[x.p.line].plant;laneDelay[k2]=Math.max(laneDelay[k2]||0,EVENTS.filter(e=>e.on&&((e.id==="cyclone"&&L.gw==="MAA")||(e.id==="strike"&&(L.gw==="NSA"||L.gw==="RW")))).reduce((a,e)=>a+e.d*SC.sev,0))});
+  const col=d=>d>=5?"--crit":d>=2?"--warn":"--good";
+  let edges="";Object.entries(laneDelay).forEach(([k,d])=>{const [a,b]=k.split(">");const A=pos[a],B=pos[b];if(!A||!B)return;const x1=A.x+A.w,y1=A.y+13,x2=B.x,y2=B.y+13,mx=(x1+x2)/2;edges+=`<path d="M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}" fill="none" stroke="var(${col(d)})" stroke-width="${d>=5?3:2}" stroke-opacity=".85"><title>${a} → ${b}: +${Math.round(d)} days</title></path>`});
+  const node=(k,label,sub,c)=>{const p=pos[k];return`<g><rect x="${p.x}" y="${p.y}" width="${p.w}" height="26" rx="5" fill="var(--surface)" stroke="var(${c||"--line"})" stroke-width="1.2"/><text x="${p.x+p.w/2}" y="${p.y+17}" text-anchor="middle" font-size="11.5" font-family="IBM Plex Sans, sans-serif" fill="var(--fg)" font-weight="600">${esc(label)}</text>${sub?`<text x="${p.x+p.w/2}" y="${p.y+40}" text-anchor="middle" font-size="10.5" font-family="IBM Plex Mono, monospace" fill="var(--muted)">${esc(sub)}</text>`:""}</g>`};
+  let nodes="";O.forEach(([k,l])=>nodes+=node(k,l));
+  G.forEach(([k,l])=>{const ev=EVENTS.filter(e=>e.on&&((e.id==="cyclone"&&k==="MAA")||(e.id==="strike"&&(k==="NSA"||k==="RW"))));nodes+=node(k,l,ev.length?ev.map(e=>e.ic).join(" · ")+" active":"",ev.length?"--crit":null)});
+  P.forEach(([k,l])=>{const lines=S.lines.filter(x=>x.l.plant===k);const st=lines.reduce((a,x)=>a+x.stop,0);nodes+=node(k,l,st?`${st} line stop-days`:"no stops",st?"--crit":"--good")});
+  $("#net").innerHTML=`<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Supply network with lanes coloured by predicted delay">${edges}${nodes}</svg>`;
+}
+function renderCharts(){
+  if(!hasChart)return;const o=baseOpts();const S=STATE;
+  const acc=cssv("--accent"),crit=cssv("--crit"),warn=cssv("--warn"),good=cssv("--good"),c3=cssv("--c3"),sig2=cssv("--signal");
+  const avg=Array.from({length:12},(_,w)=>SUPS.reduce((a,s)=>a+s.otdW[w],0)/SUPS.length);
+  const worst=[...SUPS].sort((a,b)=>(a.otd1-a.otd0)-(b.otd1-b.otd0)).slice(0,3);const cols=[crit,sig2,c3];
+  mk("cOtd",{type:"line",data:{labels:Array.from({length:12},(_,i)=>"W"+(32+i)),datasets:[{label:"Portfolio avg",data:avg.map(v=>+v.toFixed(1)),borderColor:acc,backgroundColor:alpha(acc,.1),fill:true,borderWidth:2.5,tension:.3,pointRadius:0},...worst.map((s,i)=>({label:s.name.split(" ").slice(0,2).join(" "),data:s.otdW.map(v=>+v.toFixed(1)),borderColor:cols[i],borderWidth:1.8,tension:.3,pointRadius:0,borderDash:i?[4,3]:[]}))]},
+    options:{...o,interaction:{mode:"index",intersect:false},scales:{x:o.scales.x,y:{...o.scales.y,min:70,max:100,ticks:{...o.scales.y.ticks,callback:v=>v+"%"}}}}});
+  const pts=SUPS.map(s=>({x:+(s.p*100).toFixed(1),y:+(s.revDep/1e5).toFixed(1),r:4+Math.sqrt(s.spend/1e5)*1.1,s}));
+  mk("cMatrix",{type:"bubble",data:{datasets:[{label:"Suppliers",data:pts,backgroundColor:pts.map(p=>alpha(p.s.p>=.6?crit:p.s.p>=.4?warn:acc,.55)),borderColor:pts.map(p=>p.s.p>=.6?crit:p.s.p>=.4?warn:acc),borderWidth:1}]},
+    options:{...o,plugins:{...o.plugins,legend:{display:false},tooltip:{...o.plugins.tooltip,callbacks:{label:c=>`${c.raw.s.name}: ${c.raw.x}% risk · ₹${c.raw.y} L/day dependent`}}},onClick:(e,els)=>{if(els.length){selSup=pts[els[0].index].s.id;renderSupTable();renderSupDetail()}},scales:{x:{...o.scales.y,title:{display:true,text:"30-day disruption probability"},min:0,max:100,ticks:{...o.scales.y.ticks,callback:v=>v+"%"}},y:{...o.scales.y,title:{display:true,text:"Revenue dependent, ₹ L/day"},beginAtZero:true}}}});
+  mk("cRev",{type:"bar",data:{labels:S.lines.map(x=>x.l.n),datasets:[{label:"No disruptions",data:S.lines.map(x=>+(x.rev0/1e7).toFixed(2)),backgroundColor:alpha(good,.6),borderRadius:3},{label:"Current scenario",data:S.lines.map(x=>+(x.rev/1e7).toFixed(2)),backgroundColor:crit,borderRadius:3},{label:"After mitigation",data:S.lines.map(x=>+(x.revM/1e7).toFixed(2)),backgroundColor:acc,borderRadius:3}]},
+    options:{...o,scales:{x:{...o.scales.x,ticks:{...o.scales.x.ticks,autoSkip:false,maxRotation:0,callback:function(v){const s=this.getLabelForValue(v);return s.length>16?s.split(" ").reduce((a,w)=>{if((a[a.length-1]+" "+w).trim().length>14)a.push(w);else a[a.length-1]=(a[a.length-1]+" "+w).trim();return a},[""]):s}}},y:{...o.scales.y,beginAtZero:true,title:{display:true,text:"₹ crore"}}}}});
+}
+let selSup=null;
+function renderSupTable(){
+  const list=[...SUPS].sort((a,b)=>b.p-a.p).slice(0,12);if(!selSup)selSup=list[0].id;
+  $("#supRows").innerHTML=list.map(s=>{const t=tierOf(s.p);return`<tr class="click" data-sup="${s.id}" tabindex="0" aria-selected="${selSup===s.id}"><td class="who"><b>${esc(s.name)}</b><span>${s.id} · ${s.city}${s.single?" · single source":""}</span></td><td>${esc(s.cat)}</td><td><div class="bar" style="--w:${(s.p*100).toFixed(0)}%;--bc:var(${TC[t]})"><span class="num">${pct(s.p)}</span><i></i></div></td><td>${spark(s.otdW)}<span class="num note"> ${s.otd1}%</span></td><td>${s.events.length?s.events.map(e=>`<span class="chip">${e.ic}</span>`).join(" "):'<span class="note">none</span>'}</td><td class="n">${inrS(s.revDep)}/day</td></tr>`}).join("");
+}
+function renderSupDetail(){
+  const s=SUP[selSup];if(!s){$("#supDetail").innerHTML="";return}
+  const t=tierOf(s.p);const mx=Math.max(...s.drv.map(d=>Math.abs(d.v)),.01);
+  const parts=STATE.parts.filter(x=>x.p.sup===s.id);
+  const alt=s.alt?(s.alt.id?`${SUP[s.alt.id].name} (${s.alt.lead}-day lead)`:`${s.alt.ext} (${s.alt.lead}-day lead)`):"None qualified";
+  $("#supDetail").innerHTML=`<div class="detail"><div class="hd">${gauge(s.p,t)}<div style="min-width:0"><div class="eyebrow">${s.id} · ${esc(s.cat)} · ${esc(LANES[s.lane].n)}</div><h3 style="font-size:18px">${esc(s.name)}</h3><div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">${pill(t+" risk",TC[t])}${s.single?pill("Single source","--warn"):""}</div></div></div>
+   <div class="kv"><div><span>OTD 12w ago → now</span><b>${s.otd0}% → <span class="${s.otd1<s.otd0-3?"up-bad":""}">${s.otd1}%</span></b></div><div><span>Lead time</span><b>${s.lead} days</b></div><div><span>Financial health</span><b class="${s.fin<50?"up-bad":""}">${s.fin}/100</b></div><div><span>Capacity used</span><b class="${s.cap>.9?"up-bad":""}">${pct(s.cap)}</b></div><div><span>Quality PPM</span><b>${s.ppm}</b></div><div><span>Revenue dependent</span><b>${inrS(s.revDep)}/day</b></div></div>
+   <div><div class="eyebrow" style="margin-bottom:6px">Why this score (driver attribution, log-odds)</div><div class="drv">${s.drv.map(d=>`<div class="r"><span>${esc(d.l)}</span><span class="b"><i class="${d.v<0?"neg":""}" style="width:${(Math.abs(d.v)/mx*100).toFixed(0)}%"></i></span><span class="n">${d.v>0?"+":""}${d.v.toFixed(2)}</span></div>`).join("")}</div></div>
+   <div><div class="eyebrow" style="margin-bottom:6px">Parts supplied</div>${parts.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:4px 0;border-top:1px solid var(--line)"><span>${x.p.id} ${esc(x.p.n)} <span class="note">→ ${esc(LM[x.p.line].n)}</span></span><span class="${x.r.so!==null?"up-bad":"up-good"}">${x.r.so!==null?"stocks out "+dl(x.r.so):"covered"}</span></div>`).join("")}</div>
+   <div class="note">Backup: ${esc(alt)}</div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-ask="Assess the risk of ${esc(s.name)} and what we should do">Ask agent about this supplier</button></div></div>`;
+}
+let showAll=false;
+function renderTimeline(){
+  const S=STATE;let rows=[...S.parts].sort((a,b)=>(a.r.so??99)-(b.r.so??99)||(a.r.below??99)-(b.r.below??99));if(!showAll)rows=rows.slice(0,Math.max(10,S.atRisk.length+2));
+  let h=`<div class="tl-in"><div class="hc" style="text-align:left">Part · line</div>`;for(let t=0;t<=H;t++)h+=`<div class="hc">${t%5===0?dl(t).split(" ")[0]+(t%10===0?" "+dl(t).split(" ")[1]:""):""}</div>`;
+  rows.forEach(x=>{const days=new Set(x.arrs.map(a=>a.pday));h+=`<button class="rl" data-ask="What's the status of part ${x.p.id} (${esc(x.p.n)})?"><b>${x.p.id} ${esc(x.p.n)}</b><span>${esc(SUP[x.p.sup].name)} · ${esc(LM[x.p.line].n)}</span></button>`;
+    x.r.inv.forEach((v,t)=>{const c=v<0?"x":v<x.p.safety?"w":"";h+=`<div class="c ${c} ${days.has(t)?"a":""} ${t===0?"t0":""}" title="${dl(t)}: ${v<0?"short, line stops":Math.round(v).toLocaleString("en-IN")+" units"}${days.has(t)?" · arrival":""}"></div>`})});
+  $("#tl").innerHTML=h+"</div>";$("#tlToggle").textContent=showAll?"Show at-risk only":`Show all ${PARTS.length} parts`;
+}
+function renderShips(){
+  $("#shipRows").innerHTML=STATE.ships.map(a=>{const st=a.delay>=5?["Critical","--crit"]:a.delay>=2?["Delayed","--warn"]:["On time","--good"];return`<tr><td class="who"><b>${a.id}</b><span>${a.part.id} ${esc(a.part.n)}</span></td><td>${esc(LANES[a.sup.lane].n)}<div class="note">${esc(a.sup.name)}</div></td><td class="n">${dl(a.planned)}</td><td class="n">${a.pday>H?"after "+dl(H):dl(a.pday)} <span class="${a.delay>=2?"up-bad":"note"}">+${a.delay}d</span>${a.pqty<a.qty-1?`<div class="note">${pct(a.pqty/a.qty)} of qty</div>`:""}</td><td>${pill(st[0],st[1])}${a.hit.length?`<div class="note">${a.hit.map(h=>EV[h].ic).join(" · ")}</div>`:""}</td></tr>`}).join("");
+}
+function renderMit(){
+  const S=STATE;
+  $("#mitRows").innerHTML=S.atRisk.map(x=>{const m=x.mit;const b=m&&m.best;const others=m?m.opts.filter(o=>o!==b):[];
+    return`<tr><td>${b?`<input type="checkbox" class="chk" data-mit="${x.p.id}" ${approved[x.p.id]?"checked":""} aria-label="Approve action for ${x.p.id}">`:""}</td><td class="who"><b>${x.p.id} ${esc(x.p.n)}</b><span>${esc(LM[x.p.line].n)} · short ${m?m.gap.toLocaleString("en-IN"):0} units</span></td><td class="n up-bad">${dl(x.r.so)}<div class="note">${x.r.short} stop-day${x.r.short===1?"":"s"}</div></td>
+     <td>${b?`<b>${esc(b.t)}</b><div class="opt">${esc(b.how)}</div>`:'<span class="note">No supply option in time. Re-sequence the line and notify customers.</span>'}</td><td class="n">${b?dl(b.day):"-"}${b&&b.fill<1?`<div class="note">${pct(b.fill)} fill</div>`:""}</td><td class="n">${b?inrS(b.cost):"-"}</td><td>${b?`<span class="${b.full?"up-good":"warn"}">${b.saved} of ${x.r.short}${b.full?" (fully covered)":""}</span>`:"-"}</td><td class="opt" style="font-size:11.5px;color:var(--muted)">${others.map(o=>`${esc(o.t)}: ${o.saved} days, ${inrS(o.cost)}`).join("<br>")||"-"}</td></tr>`}).join("")||`<tr><td colspan="8" class="note" style="padding:18px">No stockouts in the next 30 days under this scenario.</td></tr>`;
+  const prot=S.rev-S.revM;
+  $("#mitTotals").innerHTML=`<div><span>Plan cost (approved)</span><b>${inrS(S.planCost)}</b></div><div><span>Revenue protected</span><b class="up-good">${inrS(prot)}</b></div><div><span>Still at risk</span><b class="${S.revM>0?"up-bad":""}">${inrS(S.revM)}</b></div><div><span>Return on plan</span><b>${S.planCost?(prot/S.planCost).toFixed(1)+"×":"-"}</b></div>`;
+  const worst=[...S.lines].sort((a,b)=>b.rev-a.rev)[0];
+  $("#revInsight").innerHTML=worst&&worst.rev?`<b>${esc(worst.l.n)}</b> carries the most exposure (${inrS(worst.rev)}): it stops for ${worst.stop} day${worst.stop===1?"":"s"}, first on ${dl(worst.first)}, because of ${worst.culprits.slice(0,2).map(c=>esc(c.p.n.toLowerCase())).join(" and ")}. The approved plan protects ${inrS(prot)} of ${inrS(S.rev)} in total.`:"No line stops under this scenario.";
+}
+function renderAll(){recompute();renderTop();renderAlerts();renderNet();renderSupTable();renderSupDetail();renderTimeline();renderShips();renderMit();renderCharts()}
+
+/* ===================== AGENT TOOLS ===================== */
+const findSup=t=>{const m=t.match(/\bs(\d{2})\b/i);if(m&&SUP["S"+m[1]])return SUP["S"+m[1]];const l=t.toLowerCase();return SUPS.find(s=>l.includes(s.name.toLowerCase().split(" ")[0].toLowerCase())&&s.name.split(" ")[0].length>3)||null};
+const PKW={P101:/mosfet|power module|semiconductor/,P102:/controller pcb/,P103:/housing casting|aluminium housing|casting/,P104:/motor wire|motor harness/,P106:/gate.?driver|control unit/,P201:/stator/,P202:/magnet|neodymium/,P203:/gear housing/,P204:/6204|deep.?groove|bearing/,P206:/ecu/,P301:/caliper|bracket/,P302:/seal kit|piston seal/,P303:/flange|bolt/,P304:/actuator motor|dc motor/,P305:/needle/,P306:/steel cover/,P401:/bms/,P402:/cell|21700|li-?ion/,P403:/enclosure/,P404:/busbar/,P407:/crate|packag/};
+const findPart=t=>{const m=t.match(/\bp\s?(\d{3})\b/i);if(m&&PM["P"+m[1]])return PM["P"+m[1]];const l=t.toLowerCase();for(const [k,re] of Object.entries(PKW))if(re.test(l))return PM[k];return null};
+const findLine=t=>{const l=t.toLowerCase();if(/motor controller|\bl1\b/.test(l))return LM.L1;if(/steering|\beps\b|\bl2\b/.test(l))return LM.L2;if(/brake|\bl3\b/.test(l))return LM.L3;if(/battery pack|\b2w\b|\bl4\b|pack line/.test(l))return LM.L4;return null};
+const findEvent=t=>{const l=t.toLowerCase();if(/cyclone|chennai port|bay of bengal/.test(l))return"cyclone";if(/strike|transporter|truck/.test(l))return"strike";if(/red sea|suez|hamburg/.test(l))return"redsea";if(/chip|allocation|foundr/.test(l))return"chips";if(/distress|deccan|bankrupt|insolv/.test(l))return"distress";if(/typhoon|taiwan/.test(l))return"typhoon";return null};
+const T={
+ control_tower_overview(){const S=STATE;return{as_of:dl(0),horizon_days:H,active_events:EVENTS.filter(e=>e.on).map(e=>({id:e.id,event:e.t,impact:e.imp,prob:e.prob})),inactive_events:EVENTS.filter(e=>!e.on).map(e=>e.id),severity:SC.sev,
+   revenue_at_risk_inr:Math.round(S.rev),revenue_at_risk_without_disruption_inr:Math.round(S.rev0),revenue_still_at_risk_after_plan_inr:Math.round(S.revM),plan_cost_inr:Math.round(S.planCost),
+   lines:S.lines.map(x=>({line:x.l.n,plant:x.l.plant,stop_days:x.stop,first_stop:x.first!=null?dl(x.first):null,revenue_at_risk_inr:Math.round(x.rev),causes:x.culprits.slice(0,3).map(c=>c.p.id+" "+c.p.n)})),
+   parts_stocking_out:S.atRisk.map(x=>({part:x.p.id+" "+x.p.n,supplier:SUP[x.p.sup].name,stockout:dl(x.r.so),stop_days:x.r.short,action:x.mit&&x.mit.best?x.mit.best.t:"none in time"})),
+   top_risk_suppliers:[...SUPS].sort((a,b)=>b.p-a.p).slice(0,6).map(s=>({id:s.id,name:s.name,risk:+s.p.toFixed(2),top_driver:s.drv[0].l})),delayed_inbound:S.ships.filter(a=>a.delay>=2).length}},
+ supplier_risk({supplier}){const s=SUP[String(supplier).toUpperCase()]||findSup(String(supplier||""));if(!s)throw new Error("Unknown supplier");return{id:s.id,name:s.name,category:s.cat,city:s.city,lane:LANES[s.lane].n,risk_30d:+s.p.toFixed(2),tier:tierOf(s.p),otd_12w_ago:s.otd0,otd_now:s.otd1,lead_days:s.lead,financial_health:s.fin,capacity_util:s.cap,ppm:s.ppm,single_source:s.single,revenue_dependent_per_day_inr:s.revDep,
+   drivers:s.drv.slice(0,4).map(d=>({driver:d.l,logodds:+d.v.toFixed(2)})),active_events:s.events.map(e=>e.t),parts:STATE.parts.filter(x=>x.p.sup===s.id).map(x=>({part:x.p.id+" "+x.p.n,line:LM[x.p.line].n,stockout:x.r.so!=null?dl(x.r.so):"none"})),backup:s.alt?(s.alt.id?SUP[s.alt.id].name:s.alt.ext):"none qualified"}},
+ part_status({part}){const p=PM[String(part).toUpperCase()]||findPart(String(part||""));if(!p)throw new Error("Unknown part");const x=STATE.parts.find(y=>y.p===p);const m=x.mit;return{id:p.id,name:p.n,supplier:SUP[p.sup].name,line:LM[p.line].n,on_hand_units:Math.round(p.onHand),daily_use:p.use,days_of_cover:+(p.onHand/p.use).toFixed(1),safety_days:p.mode==="Road"?2:5,
+   arrivals:x.arrs.map(a=>({id:a.id,planned:dl(a.planned),predicted:a.pday>H?"after horizon":dl(a.pday),delay_days:a.delay,qty_pct:+(a.pqty/a.qty).toFixed(2),events:a.hit})),stockout:x.r.so!=null?dl(x.r.so):"none in 30 days",stop_days:x.r.short,below_safety_from:x.r.below!=null?dl(x.r.below):null,
+   options:m?m.opts.map(o=>({option:o.t,arrives:dl(o.day),cost_inr:Math.round(o.cost),stop_days_avoided:o.saved,fully_covers:o.full})):[],recommended:m&&m.best?m.best.t:null}},
+ line_impact({line}){const l=LM[String(line).toUpperCase()]||findLine(String(line||""));if(!l)throw new Error("Unknown line");const x=STATE.lines.find(y=>y.l===l);return{line:l.n,plant:l.plant,daily_output:l.out,unit_price_inr:l.price,daily_revenue_inr:l.rev,stop_days:x.stop,stop_days_without_disruption:x.stop0,stop_days_after_plan:x.stopM,first_stop:x.first!=null?dl(x.first):null,revenue_at_risk_inr:Math.round(x.rev),after_plan_inr:Math.round(x.revM),
+   parts:STATE.parts.filter(y=>y.p.line===l.id).map(y=>({part:y.p.id+" "+y.p.n,stockout:y.r.so!=null?dl(y.r.so):"ok",action:y.mit&&y.mit.best?y.mit.best.t:null}))}},
+ mitigation_plan(){const S=STATE;return{actions:S.plan.map(x=>({part:x.p.id+" "+x.p.n,stockout:dl(x.r.so),action:x.mit.best.t,detail:x.mit.best.how,arrives:dl(x.mit.best.day),cost_inr:Math.round(x.mit.best.cost),stop_days_avoided:x.mit.best.saved,of:x.r.short,approved:!!approved[x.p.id]})),no_option:S.atRisk.filter(x=>!x.mit||!x.mit.best).map(x=>x.p.id),plan_cost_inr:Math.round(S.planCost),revenue_protected_inr:Math.round(S.rev-S.revM),still_at_risk_inr:Math.round(S.revM)}},
+ set_scenario({event,active,severity}){const before=STATE.rev;if(event){if(!EV[event])throw new Error("Unknown event. Use "+EVENTS.map(e=>e.id).join(", "));EV[event].on=!!active}if(severity!=null)SC.sev=clamp(+severity,.5,2);$("#sev").value=SC.sev;renderAll();return{changed:event||"severity",now_active:EVENTS.filter(e=>e.on).map(e=>e.id),severity:SC.sev,revenue_at_risk_before_inr:Math.round(before),revenue_at_risk_now_inr:Math.round(STATE.rev),parts_stocking_out:STATE.atRisk.length,plan_cost_inr:Math.round(STATE.planCost),revenue_after_plan_inr:Math.round(STATE.revM)}}
+};
+
+/* ===================== BUILT-IN ENGINE ===================== */
+function local(q){
+  const steps=[];const call=(n,a)=>{steps.push(n+"("+(a?Object.values(a).filter(v=>v!=null&&v!=="").join(", "):"")+")");return T[n](a||{})};
+  const t=q.toLowerCase();const ev=findEvent(t);
+  if(ev&&/what if|what happens|simulate|turn|switch|enable|disable|if the|ends|cleared|called off|worse|without|remove|add|hits|scenario/.test(t)){
+    const off=/without|ends|cleared|called off|turn off|switch off|disable|remove|resolved/.test(t);const sev=/worse|double|severe/.test(t)?1.5:undefined;
+    const r=call("set_scenario",{event:ev,active:!off,severity:sev});const d=r.revenue_at_risk_now_inr-r.revenue_at_risk_before_inr;
+    return{steps,text:`#### Scenario: ${EV[ev].t} ${off?"removed":"included"}${sev?" at 1.5× severity":""}\n- Revenue at risk: ${inrS(r.revenue_at_risk_before_inr)} → **${inrS(r.revenue_at_risk_now_inr)}** (${d>=0?"+":"−"}${inrS(Math.abs(d))})\n- Parts stocking out: **${r.parts_stocking_out}**\n- Mitigation plan now costs ${inrS(r.plan_cost_inr)} and leaves ${inrS(r.revenue_after_plan_inr)} at risk\n\nThe whole dashboard has been updated to this scenario. ${off?"":"Look at the stockout timeline to see which parts moved."}`}}
+  const sp0=findSup(q);const pid=/\bp\s?\d{3}\b/i.test(q);
+  const pt=pid||!sp0?findPart(q):null;
+  if(pt){const s=call("part_status",{part:pt.id});const so=s.stockout!=="none in 30 days";
+    return{steps,text:`#### ${s.id} ${s.name}: ${so?"stocks out "+s.stockout:"covered"}\n${s.supplier} → ${s.line}. On hand ${s.on_hand_units.toLocaleString("en-IN")} units = **${s.days_of_cover} days** at ${s.daily_use.toLocaleString("en-IN")}/day.\n\n**Inbound**\n${s.arrivals.slice(0,4).map(a=>`- ${a.id}: planned ${a.planned} → predicted **${a.predicted}** (+${a.delay_days}d${a.qty_pct<1?", "+pct(a.qty_pct)+" of qty":""})${a.events.length?" · "+a.events.join(", "):""}`).join("\n")}\n\n${so?`**Impact:** ${s.stop_days} stop-days on ${s.line}.\n\n**Options tested**\n${s.options.map(o=>`- ${o.option}: arrives ${o.arrives}, ${inrS(o.cost_inr)}, avoids ${o.stop_days_avoided} days${o.fully_covers?" (full cover)":""}`).join("\n")||"- none in time"}\n\n**Recommendation:** ${s.recommended||"re-sequence the line and warn customers"}.`:"No action needed. Keep monitoring the predicted ETA."}`}}
+  const ln=findLine(q);
+  if(ln){const l=call("line_impact",{line:ln.id});
+    return{steps,text:`#### ${l.line} (${l.plant}): ${l.stop_days} stop-day${l.stop_days===1?"":"s"} predicted\n${l.first_stop?`First stop **${l.first_stop}**. `:""}Each stop-day costs ${inrS(l.daily_revenue_inr)} (${l.daily_output} units × ${inr(l.unit_price_inr)}).\n- Revenue at risk: **${inrS(l.revenue_at_risk_inr)}** (vs ${l.stop_days_without_disruption} stop-days with no disruptions)\n- After the mitigation plan: ${l.stop_days_after_plan} stop-days, ${inrS(l.after_plan_inr)}\n\n**Parts**\n${l.parts.map(p=>`- ${p.part}: ${p.stockout==="ok"?"ok":"**stocks out "+p.stockout+"**"}${p.action?" → "+p.action:""}`).join("\n")}`}}
+  const sp=sp0;
+  if(sp){const s=call("supplier_risk",{supplier:sp.id});
+    return{steps,text:`#### ${s.name}: ${pct(s.risk_30d)} disruption risk (${s.tier})\n${s.category}, ${s.city}, via ${s.lane}. Supports ${inrS(s.revenue_dependent_per_day_inr)} of production revenue a day${s.single_source?", single-sourced":""}.\n\n**Why**\n${s.drivers.filter(d=>d.logodds>0).map(d=>`- ${d.driver} (+${d.logodds})`).join("\n")}\n- OTD ${s.otd_12w_ago}% → ${s.otd_now}%, financial health ${s.financial_health}/100, capacity ${pct(s.capacity_util)}\n${s.active_events.length?`- Active events: ${s.active_events.join("; ")}\n`:""}\n**Parts at stake:** ${s.parts.map(p=>`${p.part} (${p.stockout==="none"?"ok":"stocks out "+p.stockout})`).join("; ")}\n\n**Actions:** ${s.risk_30d>=.4?`move part of the volume to the backup (${s.backup}), raise safety stock for its parts to 2× lead-time variability, and put the supplier on a weekly review${s.financial_health<50?"; consider supplier financing or advance payment to keep them running":""}.`:"keep on monthly monitoring."}`}}
+  if(/plan|mitigat|what should we do|actions|recommend|fix|cost/.test(t)){const m=call("mitigation_plan");
+    return{steps,text:`#### Mitigation plan: ${m.actions.length} actions, ${inrS(m.plan_cost_inr)}\n${m.actions.map((a,i)=>`${i+1}. **${a.part}** (out ${a.stockout}) → ${a.action}, arrives ${a.arrives}, ${inrS(a.cost_inr)}, avoids ${a.stop_days_avoided}/${a.of} stop-days`).join("\n")}\n${m.no_option.length?`\nNo supply option in time for ${m.no_option.join(", ")}: re-sequence those lines and tell customers early.\n`:""}\n**Result:** protects **${inrS(m.revenue_protected_inr)}** for ${inrS(m.plan_cost_inr)} (${m.plan_cost_inr?((m.revenue_protected_inr/m.plan_cost_inr).toFixed(1)+"× return"):"-"}); ${inrS(m.still_at_risk_inr)} remains at risk.`}}
+  if(/supplier|vendor|riskiest|top risk|which/.test(t)&&!/why|late too/.test(t)){const o=call("control_tower_overview");
+    return{steps,text:`#### Highest-risk suppliers (next 30 days)\n${o.top_risk_suppliers.map((s,i)=>`${i+1}. **${s.name}** (${s.id}): ${pct(s.risk)}, driven by ${s.top_driver.toLowerCase()}`).join("\n")}\n\nAsk about any supplier for drivers, parts at stake and backup options.`}}
+  const o=call("control_tower_overview");
+  return{steps,text:`#### Why we keep finding disruptions too late, and what's coming\n1. **Planning uses planned dates, not predicted ones.** ${o.delayed_inbound} inbound lots are already predicted late once live signals are applied.\n2. **Several risks overlap:** ${o.active_events.map(e=>e.event.split(",")[0]).join(", ")}.\n3. **Single-source, stretched suppliers:** ${o.top_risk_suppliers.slice(0,3).map(s=>s.name).join(", ")}.\n\n**Next 30 days:** ${o.parts_stocking_out.length} parts stock out and stop lines for ${o.lines.reduce((a,l)=>a+l.stop_days,0)} line-days, putting **${inrS(o.revenue_at_risk_inr)}** at risk (vs ${inrS(o.revenue_at_risk_without_disruption_inr)} with no disruptions).\n${o.lines.filter(l=>l.stop_days).map(l=>`- ${l.line}: ${l.stop_days} days from ${l.first_stop}, ${inrS(l.revenue_at_risk_inr)}`).join("\n")}\n\n**Recommendation:** approve the mitigation plan (${inrS(o.plan_cost_inr)}), which leaves ${inrS(o.revenue_still_at_risk_after_plan_inr)} at risk. Then make the predicted-ETA view the default for weekly S&OP.`};
+}
+
+/* ===================== CLAUDE ENGINE ===================== */
+let sample=null,useClaude=false,claudeOK=false;
+const TOOLDEFS=[
+ {name:"control_tower_overview",description:"Current scenario, revenue at risk, line stops, parts stocking out, top-risk suppliers, delayed inbound count, plan totals. Call first for broad questions."},
+ {name:"supplier_risk",description:"One supplier's 30-day disruption probability, driver attribution, KPIs, active events, parts at stake, backup.",inputSchema:{type:"object",properties:{supplier:{type:"string",description:"Supplier id like S01 or name"}},required:["supplier"]}},
+ {name:"part_status",description:"One part's cover, inbound shipments with planned vs predicted ETAs, stockout date, mitigation options tested.",inputSchema:{type:"object",properties:{part:{type:"string",description:"Part id like P101 or name"}},required:["part"]}},
+ {name:"line_impact",description:"Production line stop-days, revenue at risk before/after plan, and part status.",inputSchema:{type:"object",properties:{line:{type:"string",enum:["L1","L2","L3","L4"]}},required:["line"]}},
+ {name:"mitigation_plan",description:"All recommended mitigation actions with costs, timing, stop-days avoided, and totals."},
+ {name:"set_scenario",description:"Turn a risk event on/off and/or set severity (0.5-2). Recalculates the whole dashboard and returns the before/after. Use for what-if questions.",inputSchema:{type:"object",properties:{event:{type:"string",enum:EVENTS.map(e=>e.id)},active:{type:"boolean"},severity:{type:"number"}}}}
+];
+const RULES=`You are Tower Agent, an AI supply-chain operations analyst inside a control-tower dashboard for an EV components manufacturer (plants in Hyderabad and Pune; lines L1 EV motor controller, L2 Electric power steering, L3 Brake actuator, L4 2W battery pack). All data is assumed/synthetic for a case study. Today is 26 Oct 2026; horizon 30 days. Inventory is projected day by day using predicted ETAs (planned + supplier lateness + active risk events); a line stops on any day a BOM part is below zero. Supplier risk is a logistic model with driver attribution in log-odds. Mitigations tested per part: air expedite, dedicated truck, alternate supplier, spot buy; the cheapest option that fully covers is chosen. Use tools for every number; never invent suppliers, parts or figures. Use set_scenario for what-if questions and tell the user the dashboard changed. Indian currency (₹, lakh, crore). Lead with the answer, then evidence, then actions. Under ~220 words. Short markdown: '####' headings, bullets, numbered steps, **bold** for key numbers.`;
+async function askClaude(q,hist,onStep,onText,signal){
+  const turns=[{role:"user",content:RULES},...hist.slice(-8),{role:"user",content:q}];
+  const tools=TOOLDEFS.map(d=>({...d,execute:i=>{onStep(d.name+"("+Object.values(i||{}).join(", ")+")");return T[d.name](i||{})}}));
+  return(await sample(turns,{tools,signal,modelTier:"quick",onText:({text})=>onText(text)})).text;
+}
+
+/* ===================== CHAT ===================== */
+const hist=[];let busy=false,ctl=null;
+function md(s){const lines=String(s).replace(/\r/g,"").split("\n");let out="",list=null,tbl=[];
+  const inl=x=>esc(x).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/(^|[^*])\*([^*\n]+)\*/g,"$1<i>$2</i>").replace(/`([^`]+)`/g,"<code>$1</code>");
+  const close=()=>{if(list){out+=`</${list}>`;list=null}};const flushT=()=>{if(!tbl.length)return;const rows=tbl.filter(r=>!/^\s*\|?\s*:?-{2,}/.test(r)).map(r=>r.trim().replace(/^\||\|$/g,"").split("|"));out+="<table>"+rows.map((r,i)=>"<tr>"+r.map(c=>i?`<td>${inl(c.trim())}</td>`:`<th>${inl(c.trim())}</th>`).join("")+"</tr>").join("")+"</table>";tbl=[]};
+  for(const l of lines){if(/^\s*\|.*\|\s*$/.test(l)){close();tbl.push(l);continue}else flushT();let m;
+    if(m=l.match(/^#{1,6}\s+(.*)/)){close();out+=`<h4>${inl(m[1])}</h4>`}else if(m=l.match(/^\s*[-*•]\s+(.*)/)){if(list!=="ul"){close();out+="<ul>";list="ul"}out+=`<li>${inl(m[1])}</li>`}
+    else if(m=l.match(/^\s*\d+[.)]\s+(.*)/)){if(list!=="ol"){close();out+="<ol>";list="ol"}out+=`<li>${inl(m[1])}</li>`}else if(l.trim()===""){close()}else{close();out+=`<p>${inl(l)}</p>`}}
+  close();flushT();return out}
+function addMsg(role,html){const d=document.createElement("div");d.className="msg "+role;if(role==="u")d.textContent=html;else d.innerHTML=`<div class="trace"></div><div class="body">${html}</div>`;$("#msgs").appendChild(d);$("#msgs").scrollTop=$("#msgs").scrollHeight;return d}
+function engineLabel(){$("#engineBtn").innerHTML=useClaude?"engine: <b>Claude · live</b>":"engine: <b>built-in</b>"}
+function greet(){const S=STATE;addMsg("a",md(`#### Control tower agent ready\nWith ${EVENTS.filter(e=>e.on).length} live risk signals applied, **${S.atRisk.length} parts** will stock out in the next 30 days, stopping lines for **${S.lines.reduce((a,x)=>a+x.stop,0)} line-days** and putting **${inrS(S.rev)}** of production revenue at risk. The first stockout is **${S.atRisk[0]?S.atRisk[0].p.n+" on "+dl(S.atRisk[0].r.so):"none"}**.\n\nAsk me about a supplier, part, line or the plan, or try a what-if like "what if the typhoon hits Taiwan?"`))}
+function renderSugg(){const S=STATE;$("#sugg").innerHTML=["Why do we find disruptions too late?","What's the mitigation plan and its ROI?","What if the typhoon hits Taiwan?","Which suppliers are most likely to fail?",S.atRisk[0]?`Status of ${S.atRisk[0].p.id} ${S.atRisk[0].p.n}`:"Status of P101","What if the Maharashtra strike is called off?"].map(s=>`<button type="button">${esc(s)}</button>`).join("")}
+async function send(q){q=q.trim();if(!q||busy)return;busy=true;$("#sendBtn").textContent="Stop";$("#q").value="";
+  addMsg("u",q);const m=addMsg("a",`<span class="thinking">Analysing…</span>`);const tr=m.querySelector(".trace"),body=m.querySelector(".body");
+  const step=s=>{const sp=document.createElement("span");sp.textContent=s;tr.appendChild(sp)};let text="";
+  try{if(useClaude&&sample){ctl=new AbortController();text=await askClaude(q,hist,step,t=>{body.innerHTML=md(t);$("#msgs").scrollTop=$("#msgs").scrollHeight},ctl.signal);body.innerHTML=md(text)}
+    else{await new Promise(r=>setTimeout(r,350));const r=local(q);r.steps.forEach(step);text=r.text;body.innerHTML=md(text)}
+    hist.push({role:"user",content:q},{role:"assistant",content:text})}
+  catch(e){const c=e&&e.code;
+    if(c==="cancelled")body.innerHTML=e.text?md(e.text):`<span class="thinking">Stopped.</span>`;
+    else if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed","tools_unavailable"].includes(c)){claudeOK=false;useClaude=false;engineLabel();const r=local(q);r.steps.forEach(step);body.innerHTML=`<p class="note">Claude isn't available here, so the built-in engine answered.</p>`+md(r.text);hist.push({role:"user",content:q},{role:"assistant",content:r.text})}
+    else if(c==="rate_limited")body.innerHTML=`<p>Claude is rate-limited right now. Try again in a minute or switch to the built-in engine.</p>`;
+    else if(c)body.innerHTML=(e.text?md(e.text):"")+`<p class="note">The answer was interrupted (${esc(c)}). Send again to retry.</p>`;
+    else body.innerHTML=`<p>Something went wrong: ${esc(e&&e.message||e)}</p>`}
+  finally{busy=false;ctl=null;$("#sendBtn").textContent="Send";renderSugg();$("#msgs").scrollTop=$("#msgs").scrollHeight}}
+
+/* ===================== EVENTS ===================== */
+document.addEventListener("click",e=>{
+  const g=e.target.closest("[data-go]");if(g){go(g.dataset.go);return}
+  const a=e.target.closest("[data-ask]");if(a){send(a.dataset.ask);if(innerWidth<=1180)go("agent");return}
+  const r=e.target.closest("tr[data-sup]");if(r){selSup=r.dataset.sup;renderSupTable();renderSupDetail();return}
+  const s=e.target.closest("#sugg button");if(s){send(s.textContent);return}
+});
+document.addEventListener("keydown",e=>{if(e.key==="Enter"){const r=e.target.closest&&e.target.closest("tr[data-sup]");if(r){selSup=r.dataset.sup;renderSupTable();renderSupDetail()}}});
+document.addEventListener("change",e=>{
+  const ev=e.target.closest("[data-ev]");if(ev){EV[ev.dataset.ev].on=ev.checked;renderAll();return}
+  const mi=e.target.closest("[data-mit]");if(mi){approved[mi.dataset.mit]=mi.checked;recompute();renderTop();renderMit();renderNet();renderCharts();return}
+});
+$("#sev").addEventListener("input",e=>{SC.sev=+e.target.value;renderAll()});
+$("#tlToggle").addEventListener("click",()=>{showAll=!showAll;renderTimeline()});
+$("#composer").addEventListener("submit",e=>{e.preventDefault();if(busy&&ctl){ctl.abort();return}send($("#q").value)});
+$("#q").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("#composer").requestSubmit()}});
+$("#engineBtn").addEventListener("click",()=>{if(!claudeOK){addMsg("a",md("Claude isn't available in this view, so I'm using the built-in analytics engine. It runs the same tools on the same data."));return}useClaude=!useClaude;engineLabel()});
+$("#fab").addEventListener("click",()=>go("agent"));
+const redraw=()=>renderCharts();
+try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",redraw)}catch(_){}
+new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+
+renderAll();engineLabel();greet();renderSugg();
+(async()=>{try{if(!window.claude||!window.claude.use)return;const s=await window.claude.use("sample");if(!s)return;const lim=await s.limits().catch(()=>null);if(!lim||!lim.tools)return;sample=s;claudeOK=true;useClaude=true;engineLabel()}catch(_){}})();
+})();
+</script>
+
+</body></html>
